@@ -1,46 +1,74 @@
 import { useState } from "react";
 
 const CORRIDORS = [
-  { code:"IN", flag:"🇮🇳", name:"India",         currency:"INR", rate:83.12,  fee:0.50, chain:"MATIC" },
-  { code:"PH", flag:"🇵🇭", name:"Philippines",   currency:"PHP", rate:58.20,  fee:0.40, chain:"MATIC" },
-  { code:"PK", flag:"🇵🇰", name:"Pakistan",      currency:"PKR", rate:278.50, fee:0.45, chain:"MATIC" },
-  { code:"EG", flag:"🇪🇬", name:"Egypt",         currency:"EGP", rate:48.70,  fee:0.60, chain:"ETH"   },
-  { code:"US", flag:"🇺🇸", name:"United States", currency:"USD", rate:1.00,   fee:0.30, chain:"ETH"   },
-  { code:"GB", flag:"🇬🇧", name:"UK",            currency:"GBP", rate:0.792,  fee:0.40, chain:"ETH"   },
+  { code:"IN", flag:"🇮🇳", name:"India",         region:"South Asia",    currency:"INR", rate:83.12,  fee:0.50, chain:"MATIC" },
+  { code:"PH", flag:"🇵🇭", name:"Philippines",   region:"Southeast Asia",currency:"PHP", rate:58.20,  fee:0.40, chain:"MATIC" },
+  { code:"PK", flag:"🇵🇰", name:"Pakistan",      region:"South Asia",    currency:"PKR", rate:278.50, fee:0.45, chain:"MATIC" },
+  { code:"EG", flag:"🇪🇬", name:"Egypt",         region:"Africa",        currency:"EGP", rate:48.70,  fee:0.60, chain:"ETH"   },
+  { code:"NG", flag:"🇳🇬", name:"Nigeria",       region:"Africa",        currency:"NGN", rate:1610.0, fee:0.55, chain:"MATIC" },
+  { code:"GH", flag:"🇬🇭", name:"Ghana",         region:"Africa",        currency:"GHS", rate:15.20,  fee:0.55, chain:"MATIC" },
+  { code:"KE", flag:"🇰🇪", name:"Kenya",         region:"Africa",        currency:"KES", rate:129.50, fee:0.50, chain:"MATIC" },
+  { code:"MX", flag:"🇲🇽", name:"Mexico",        region:"Latin America", currency:"MXN", rate:17.20,  fee:0.40, chain:"ETH"   },
+  { code:"BR", flag:"🇧🇷", name:"Brazil",        region:"Latin America", currency:"BRL", rate:5.10,   fee:0.40, chain:"ETH"   },
+  { code:"US", flag:"🇺🇸", name:"United States", region:"North America", currency:"USD", rate:1.00,   fee:0.30, chain:"ETH"   },
+  { code:"GB", flag:"🇬🇧", name:"UK",            region:"Europe",        currency:"GBP", rate:0.792,  fee:0.40, chain:"ETH"   },
+  { code:"BD", flag:"🇧🇩", name:"Bangladesh",    region:"South Asia",    currency:"BDT", rate:110.0,  fee:0.45, chain:"MATIC" },
 ];
 
+const REGIONS = ["All", "Africa", "South Asia", "Southeast Asia", "Latin America", "Europe", "North America"];
+
 const PAYOUT_METHODS = [
-  { id:"usdc",  icon:"◈", name:"USDC Wallet",     desc:"Direct to crypto wallet"    },
-  { id:"bank",  icon:"🏦", name:"Bank Transfer",  desc:"Local bank account"          },
-  { id:"mobile",icon:"📱", name:"Mobile Money",   desc:"M-Pesa, GCash, EasyPaisa"   },
-  { id:"cash",  icon:"💵", name:"Cash Pickup",    desc:"Agent network (coming soon)" },
+  { id:"usdc",   icon:"◈", name:"USDC Wallet",    desc:"Direct to crypto wallet"   },
+  { id:"bank",   icon:"🏦", name:"Bank Transfer",  desc:"Local bank account"        },
+  { id:"mobile", icon:"📱", name:"Mobile Money",   desc:"M-Pesa, GCash, EasyPaisa" },
+  { id:"cash",   icon:"💵", name:"Cash Pickup",    desc:"Agent network (coming soon)" },
 ];
 
 const STEPS = ["Corridor", "Amount", "Payout", "Route", "Confirm"];
 
 export default function SendFlow({ onBack, onComplete, usdcBalance, sendTransfer, connected, onConnect }) {
-  const [step, setStep]           = useState(1);
-  const [corridor, setCorridor]   = useState(null);
-  const [aedAmount, setAedAmount] = useState("");
-  const [recipient, setRecipient] = useState("");
-  const [payout, setPayout]       = useState("usdc");
-  const [loading, setLoading]     = useState(false);
-  const [result, setResult]       = useState(null);
-  const [error, setError]         = useState(null);
+  const [step, setStep]             = useState(1);
+  const [corridor, setCorridor]     = useState(null);
+  const [region, setRegion]         = useState("All");
+  const [sendMode, setSendMode]     = useState("name");   // "name" | "wallet"
+  const [aedAmount, setAedAmount]   = useState("");
+  const [recipient, setRecipient]   = useState("");
+  const [walletAddr, setWalletAddr] = useState("");
+  const [payout, setPayout]         = useState("usdc");
+  const [loading, setLoading]       = useState(false);
+  const [result, setResult]         = useState(null);
+  const [error, setError]           = useState(null);
 
-  const usdcAmt   = aedAmount ? (parseFloat(aedAmount) * 0.272).toFixed(2) : "0.00";
-  const fee       = corridor  ? (parseFloat(usdcAmt) * 0.003).toFixed(3)   : "0.00";
-  const localAmt  = corridor && aedAmount ? (parseFloat(usdcAmt) * corridor.rate).toFixed(2) : "0.00";
-  const total     = (parseFloat(usdcAmt) + parseFloat(fee)).toFixed(4);
-  const canNext2  = !!corridor;
-  const canNext3  = aedAmount && parseFloat(aedAmount) >= 10 && recipient.trim().length >= 2;
-  const canNext4  = !!payout;
+  const usdcAmt  = aedAmount ? (parseFloat(aedAmount) * 0.272).toFixed(2) : "0.00";
+  const fee      = corridor  ? (parseFloat(usdcAmt) * 0.003).toFixed(3)   : "0.00";
+  const localAmt = corridor && aedAmount ? (parseFloat(usdcAmt) * corridor.rate).toFixed(2) : "0.00";
+  const total    = (parseFloat(usdcAmt) + parseFloat(fee)).toFixed(4);
+
+  const filteredCorridors = region === "All" ? CORRIDORS : CORRIDORS.filter(c => c.region === region);
+
+  const isWalletValid = walletAddr.startsWith("0x") && walletAddr.length === 42;
+  const canNext2 = !!corridor;
+  const canNext3 = aedAmount && parseFloat(aedAmount) >= 1 &&
+    (sendMode === "name" ? recipient.trim().length >= 2 : isWalletValid);
+  const canNext4 = !!payout;
+
+  const displayRecipient = sendMode === "wallet"
+    ? `${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}`
+    : recipient;
 
   async function handleSend() {
     setLoading(true);
     setError(null);
     try {
-      const res = await sendTransfer({ aedAmount: parseFloat(aedAmount), recipientName: recipient, countryCode: corridor.code });
+      const recipientName = sendMode === "wallet"
+        ? `wallet:${walletAddr}`
+        : recipient;
+      const res = await sendTransfer({
+        aedAmount:     parseFloat(aedAmount),
+        recipientName,
+        countryCode:   corridor.code,
+        walletAddress: sendMode === "wallet" ? walletAddr : null,
+      });
       setResult(res);
       setStep(6);
     } catch (err) {
@@ -50,22 +78,25 @@ export default function SendFlow({ onBack, onComplete, usdcBalance, sendTransfer
     }
   }
 
-  // Success screen
   if (step === 6) {
     return (
       <div className="success-wrap">
         <div className="success-icon-ring">✓</div>
         <div className="success-title">Transfer Confirmed</div>
-        <div className="success-sub">{result?.usdcAmt?.toFixed(2)} USDC sent to {recipient} · {corridor?.flag} {corridor?.name}</div>
-        <div className="hash-card" style={{ maxWidth:520, margin:"0 auto 12px" }}>
+        <div className="success-sub">
+          {result?.usdcAmt?.toFixed(2)} USDC sent to {displayRecipient} · {corridor?.flag} {corridor?.name}
+        </div>
+        <div className="hash-card" style={{ maxWidth:560, margin:"0 auto 12px" }}>
           <div className="hash-label">Arc Transaction Hash</div>
           <div className="hash-val">{result?.txHash}</div>
         </div>
-        <div className="hash-card" style={{ maxWidth:520, margin:"0 auto 28px" }}>
+        <div className="hash-card" style={{ maxWidth:560, margin:"0 auto 28px" }}>
           <div className="hash-label">Settlement Rail</div>
-          <div className="hash-val">USDC on Arc · Deterministic finality · Circle CCTP cross-chain to {corridor?.chain}</div>
+          <div className="hash-val">
+            USDC on Arc · Deterministic finality · Circle CCTP cross-chain to {corridor?.chain}
+          </div>
         </div>
-        <button className="btn-primary" onClick={onComplete}>← Back to Dashboard</button>
+        <button className="btn-primary" onClick={onComplete}>Back to Dashboard</button>
       </div>
     );
   }
@@ -75,7 +106,9 @@ export default function SendFlow({ onBack, onComplete, usdcBalance, sendTransfer
       <div style={{ textAlign:"center", padding:"64px 32px" }}>
         <div style={{ fontSize:48, marginBottom:16 }}>◈</div>
         <div style={{ fontSize:20, fontWeight:700, marginBottom:8 }}>Connect your wallet</div>
-        <div style={{ fontSize:14, color:"var(--text-secondary)", marginBottom:28 }}>You need a wallet connected to Arc Testnet to send.</div>
+        <div style={{ fontSize:14, color:"var(--text-secondary)", marginBottom:28 }}>
+          Connect to Arc Testnet to send USDC globally.
+        </div>
         <button className="btn-primary" onClick={onConnect}>Connect Wallet</button>
       </div>
     );
@@ -83,7 +116,6 @@ export default function SendFlow({ onBack, onComplete, usdcBalance, sendTransfer
 
   return (
     <div>
-      {/* Step progress */}
       <div className="step-progress">
         {STEPS.map((s, i) => (
           <div key={s} style={{ display:"flex", alignItems:"center", flex: i < STEPS.length - 1 ? 1 : "none" }}>
@@ -97,60 +129,159 @@ export default function SendFlow({ onBack, onComplete, usdcBalance, sendTransfer
       </div>
 
       <div className="send-layout">
-        {/* Left: step content */}
         <div>
+          {/* Step 1 -- Corridor */}
           {step === 1 && (
             <div className="card">
-              <div className="card-title">Select destination corridor</div>
+              <div className="card-title">Select destination · {CORRIDORS.length} corridors worldwide</div>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:16 }}>
+                {REGIONS.map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setRegion(r)}
+                    style={{
+                      padding:"5px 12px",
+                      background: region === r ? "var(--accent-dim)" : "var(--bg-surface)",
+                      border: `1px solid ${region === r ? "var(--accent)" : "var(--border)"}`,
+                      borderRadius:20, color: region === r ? "var(--accent)" : "var(--text-secondary)",
+                      fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"var(--font-sans)"
+                    }}
+                  >{r}</button>
+                ))}
+              </div>
               <div className="corridor-grid">
-                {CORRIDORS.map(c => (
-                  <div key={c.code} className={`corridor-card ${corridor?.code === c.code ? "selected" : ""}`} onClick={() => setCorridor(c)}>
+                {filteredCorridors.map(c => (
+                  <div
+                    key={c.code}
+                    className={`corridor-card ${corridor?.code === c.code ? "selected" : ""}`}
+                    onClick={() => setCorridor(c)}
+                  >
                     <div className="corridor-flag">{c.flag}</div>
                     <div className="corridor-name">{c.name}</div>
+                    <div style={{ fontSize:10, color:"var(--text-muted)", marginBottom:4 }}>{c.region}</div>
                     <div className="corridor-rate">1 USDC = {c.rate} {c.currency}</div>
                     <div className="corridor-fee-chip">Fee ${c.fee.toFixed(2)}</div>
                   </div>
                 ))}
               </div>
-              <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+              <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:8 }}>
                 <button className="btn-secondary" onClick={onBack}>Cancel</button>
-                <button className="btn-primary" disabled={!canNext2} onClick={() => setStep(2)}>Continue →</button>
+                <button className="btn-primary" disabled={!canNext2} onClick={() => setStep(2)}>Continue</button>
               </div>
             </div>
           )}
 
+          {/* Step 2 -- Amount + recipient */}
           {step === 2 && (
             <div className="card">
-              <div className="card-title">Enter amount and recipient</div>
-              <label className="field-label">Amount (AED)</label>
-              <div className="amount-wrap">
-                <span className="amount-prefix">AED</span>
-                <input type="number" className="amount-input" placeholder="0" min={10} value={aedAmount} onChange={e => setAedAmount(e.target.value)} />
+              <div className="card-title">Amount and recipient</div>
+
+              {/* Send mode toggle */}
+              <div style={{ display:"flex", gap:0, marginBottom:20, background:"var(--bg-surface)", border:"1px solid var(--border)", borderRadius:"var(--radius-md)", padding:4 }}>
+                {[
+                  { id:"name",   label:"Send by name"          },
+                  { id:"wallet", label:"Send to wallet address" },
+                ].map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => setSendMode(m.id)}
+                    style={{
+                      flex:1, padding:"9px 12px",
+                      background: sendMode === m.id ? "var(--accent)" : "transparent",
+                      color: sendMode === m.id ? "var(--bg-base)" : "var(--text-secondary)",
+                      border:"none", borderRadius:"var(--radius-sm)",
+                      fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"var(--font-sans)",
+                      transition:"all 0.15s"
+                    }}
+                  >{m.label}</button>
+                ))}
               </div>
+
+              <label className="field-label">Amount (USD)</label>
+              <div className="amount-wrap">
+                <span className="amount-prefix">$</span>
+                <input
+                  type="number"
+                  className="amount-input"
+                  placeholder="0"
+                  min={1}
+                  value={aedAmount}
+                  onChange={e => setAedAmount(e.target.value)}
+                />
+              </div>
+
               {aedAmount && parseFloat(aedAmount) > 0 && (
                 <div className="conversion-row">
-                  <span style={{ color:"var(--text-secondary)", fontSize:12 }}>AED {parseFloat(aedAmount).toFixed(2)}</span>
+                  <span style={{ color:"var(--text-secondary)", fontSize:12 }}>${parseFloat(aedAmount).toFixed(2)}</span>
                   <span className="conv-arrow">→</span>
                   <span className="conv-usdc">{usdcAmt} USDC</span>
                   <span className="conv-arrow">→</span>
                   <span className="conv-local">{corridor?.currency} {localAmt}</span>
                 </div>
               )}
-              <label className="field-label">Recipient name</label>
-              <input type="text" className="text-input" placeholder="e.g. Priya Sharma" value={recipient} onChange={e => setRecipient(e.target.value)} />
+
+              {sendMode === "name" ? (
+                <>
+                  <label className="field-label">Recipient name</label>
+                  <input
+                    type="text"
+                    className="text-input"
+                    placeholder="e.g. Amara Osei"
+                    value={recipient}
+                    onChange={e => setRecipient(e.target.value)}
+                  />
+                </>
+              ) : (
+                <>
+                  <label className="field-label">Recipient wallet address</label>
+                  <input
+                    type="text"
+                    className="text-input"
+                    placeholder="0x..."
+                    value={walletAddr}
+                    onChange={e => setWalletAddr(e.target.value)}
+                    style={{ fontFamily:"var(--font-mono)", fontSize:13,
+                      borderColor: walletAddr && !isWalletValid ? "var(--red)" : undefined }}
+                  />
+                  {walletAddr && !isWalletValid && (
+                    <div style={{ fontSize:11, color:"var(--red)", marginTop:-10, marginBottom:12 }}>
+                      Invalid address -- must start with 0x and be 42 characters
+                    </div>
+                  )}
+                  {isWalletValid && (
+                    <div style={{ fontSize:11, color:"var(--green)", marginTop:-10, marginBottom:12 }}>
+                      ✓ Valid wallet address
+                    </div>
+                  )}
+                  <label className="field-label">Recipient name (optional)</label>
+                  <input
+                    type="text"
+                    className="text-input"
+                    placeholder="For your records"
+                    value={recipient}
+                    onChange={e => setRecipient(e.target.value)}
+                  />
+                </>
+              )}
+
               <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
-                <button className="btn-secondary" onClick={() => setStep(1)}>← Back</button>
-                <button className="btn-primary" disabled={!canNext3} onClick={() => setStep(3)}>Continue →</button>
+                <button className="btn-secondary" onClick={() => setStep(1)}>Back</button>
+                <button className="btn-primary" disabled={!canNext3} onClick={() => setStep(3)}>Continue</button>
               </div>
             </div>
           )}
 
+          {/* Step 3 -- Payout method */}
           {step === 3 && (
             <div className="card">
               <div className="card-title">Choose payout method</div>
               <div className="payout-grid">
                 {PAYOUT_METHODS.map(m => (
-                  <div key={m.id} className={`payout-card ${payout === m.id ? "selected" : ""}`} onClick={() => setPayout(m.id)}>
+                  <div
+                    key={m.id}
+                    className={`payout-card ${payout === m.id ? "selected" : ""}`}
+                    onClick={() => setPayout(m.id)}
+                  >
                     <div className="payout-icon">{m.icon}</div>
                     <div className="payout-name">{m.name}</div>
                     <div className="payout-desc">{m.desc}</div>
@@ -158,53 +289,62 @@ export default function SendFlow({ onBack, onComplete, usdcBalance, sendTransfer
                 ))}
               </div>
               <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
-                <button className="btn-secondary" onClick={() => setStep(2)}>← Back</button>
-                <button className="btn-primary" disabled={!canNext4} onClick={() => setStep(4)}>Continue →</button>
+                <button className="btn-secondary" onClick={() => setStep(2)}>Back</button>
+                <button className="btn-primary" disabled={!canNext4} onClick={() => setStep(4)}>Continue</button>
               </div>
             </div>
           )}
 
+          {/* Step 4 -- AI route preview */}
           {step === 4 && (
             <div className="card">
               <div className="card-title">AI route preview</div>
-              <div style={{ padding:"10px 14px", background:"var(--accent-dim)", border:"1px solid rgba(0,212,255,0.2)", borderRadius:"var(--radius-md)", marginBottom:20, fontSize:13, color:"var(--accent)" }}>
-                ◈ Optimal route selected · Estimated delivery: &lt;30 seconds · Savings vs. SWIFT: ~94%
+              <div style={{ padding:"12px 16px", background:"var(--accent-dim)", border:"1px solid rgba(0,212,255,0.2)", borderRadius:"var(--radius-md)", marginBottom:20, fontSize:13, color:"var(--accent)", display:"flex", justifyContent:"space-between" }}>
+                <span>◈ Optimal route selected</span>
+                <span>Est. delivery: &lt;30s · Savings vs SWIFT: ~94%</span>
               </div>
               <div className="route-steps">
                 {[
-                  { icon:"◈", cls:"blue",  name:"Circle Embedded Wallet",  desc:"User wallet on Arc Testnet" },
-                  { icon:"$", cls:"amber", name:"USDC on Arc",              desc:"Settlement + gas in USDC" },
-                  { icon:"⇄", cls:"green", name:"CCTP Bridge Kit",          desc:`Cross-chain to ${corridor?.chain}` },
-                  { icon:"⬡", cls:"blue",  name:"Circle Gateway",           desc:"Treasury routing + off-ramp" },
-                  { icon:"✓", cls:"green", name:`Recipient in ${corridor?.name}`, desc:`${PAYOUT_METHODS.find(m=>m.id===payout)?.name}` },
+                  { icon:"◈", cls:"blue",  name:"Your Wallet",             desc:"Arc Testnet · USDC"                                  },
+                  { icon:"$", cls:"amber", name:"RemitArc Contract",        desc:"0x5A8d08...4769 · Fee deducted"                      },
+                  { icon:"⇄", cls:"green", name:"CCTP Bridge Kit",          desc:`Cross-chain burn-and-mint to ${corridor?.chain}`     },
+                  { icon:"⬡", cls:"blue",  name:"Circle Gateway",           desc:"Treasury routing · off-ramp orchestration"           },
+                  { icon:"✓", cls:"green", name:`${corridor?.flag} ${corridor?.name}`, desc:`${PAYOUT_METHODS.find(m=>m.id===payout)?.name} · ${corridor?.currency}` },
                 ].map((n, i, arr) => (
                   <div key={i}>
                     <div className="route-node">
                       <div className={`route-icon ${n.cls}`}>{n.icon}</div>
-                      <div><div className="route-name">{n.name}</div><div className="route-desc">{n.desc}</div></div>
+                      <div>
+                        <div className="route-name">{n.name}</div>
+                        <div className="route-desc">{n.desc}</div>
+                      </div>
                     </div>
                     {i < arr.length - 1 && <div className="route-arrow">↓</div>}
                   </div>
                 ))}
               </div>
               <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
-                <button className="btn-secondary" onClick={() => setStep(3)}>← Back</button>
-                <button className="btn-primary" onClick={() => setStep(5)}>Confirm Route →</button>
+                <button className="btn-secondary" onClick={() => setStep(3)}>Back</button>
+                <button className="btn-primary" onClick={() => setStep(5)}>Confirm Route</button>
               </div>
             </div>
           )}
 
+          {/* Step 5 -- Confirm */}
           {step === 5 && (
             <div className="card">
               <div className="card-title">Final confirmation</div>
-              <div style={{ fontSize:13, color:"var(--text-secondary)", marginBottom:20, lineHeight:1.7 }}>
-                Please review your transfer details below. Once confirmed, USDC will be deducted from your wallet and the transfer will be settled on Arc testnet in real time.
+              <div style={{ fontSize:13, color:"var(--text-secondary)", marginBottom:20, lineHeight:1.8 }}>
+                Once confirmed, USDC will be deducted from your wallet and settled on Arc testnet in real time. The backend will handle Circle Gateway routing and CCTP cross-chain transfer.
               </div>
               {error && <div className="error-box">{error}</div>}
               <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
-                <button className="btn-secondary" onClick={() => setStep(4)}>← Back</button>
+                <button className="btn-secondary" onClick={() => setStep(4)}>Back</button>
                 <button className="btn-primary" onClick={handleSend} disabled={loading}>
-                  {loading ? <><span className="spinner" /> Processing on Arc...</> : "Confirm and Send ↗"}
+                  {loading
+                    ? <><span className="spinner" /> Processing on Arc...</>
+                    : "Confirm and Send"
+                  }
                 </button>
               </div>
             </div>
@@ -214,15 +354,21 @@ export default function SendFlow({ onBack, onComplete, usdcBalance, sendTransfer
         {/* Right: review panel */}
         <div className="review-panel">
           <div className="review-header">Transfer Summary</div>
-          <div className="review-row"><span className="review-key">To</span><span className="review-val">{recipient || "—"}</span></div>
+          <div className="review-row">
+            <span className="review-key">To</span>
+            <span className="review-val" style={{ fontFamily: sendMode === "wallet" ? "var(--font-mono)" : "inherit", fontSize: sendMode === "wallet" ? 11 : 13 }}>
+              {sendMode === "wallet" ? (walletAddr || "—") : (recipient || "—")}
+            </span>
+          </div>
           <div className="review-row"><span className="review-key">Destination</span><span className="review-val">{corridor ? `${corridor.flag} ${corridor.name}` : "—"}</span></div>
-          <div className="review-row"><span className="review-key">AED amount</span><span className="review-val">{aedAmount ? `AED ${parseFloat(aedAmount).toFixed(2)}` : "—"}</span></div>
+          <div className="review-row"><span className="review-key">Send amount</span><span className="review-val">{aedAmount ? `$${parseFloat(aedAmount).toFixed(2)}` : "—"}</span></div>
           <div className="review-row"><span className="review-key">USDC settled</span><span className="review-val review-accent">{usdcAmt} USDC</span></div>
           <div className="review-row"><span className="review-key">Local equivalent</span><span className="review-val">{corridor ? `${corridor.currency} ${localAmt}` : "—"}</span></div>
           <div className="review-row"><span className="review-key">Network fee</span><span className="review-val">{fee} USDC</span></div>
-          <div className="review-row"><span className="review-key">Payout method</span><span className="review-val">{PAYOUT_METHODS.find(m=>m.id===payout)?.name || "—"}</span></div>
+          <div className="review-row"><span className="review-key">Payout</span><span className="review-val">{PAYOUT_METHODS.find(m=>m.id===payout)?.name || "—"}</span></div>
           <div className="review-row"><span className="review-key">Settlement</span><span className="review-val review-green">Instant finality</span></div>
-          <div className="review-row"><span className="review-key">Rail</span><span className="review-val"><span className="circle-badge">◈ USDC on Arc</span></span></div>
+          <div className="review-row"><span className="review-key">Chain</span><span className="review-val">{corridor?.chain || "—"}</span></div>
+          <div className="review-row"><span className="review-key">Rail</span><span className="review-val"><span className="circle-badge">USDC on Arc</span></span></div>
           <div className="review-total">
             <span className="review-total-label">Total</span>
             <span className="review-total-val">{total} USDC</span>

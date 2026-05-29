@@ -2,11 +2,10 @@ import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import Dashboard from "./components/Dashboard";
 import SendFlow from "./components/SendFlow";
-import History from "./components/History";
-import Architecture from "./components/Architecture";
+import { History, Architecture } from "./components/HistoryAndArch";
 import "./App.css";
 
-const ARC_CHAIN_ID = 5042002;
+const ARC_CHAIN_ID  = 5042002;
 const ARC_CHAIN_HEX = "0x" + ARC_CHAIN_ID.toString(16);
 
 const CONTRACT_ABI = [
@@ -25,41 +24,31 @@ const USDC_ABI = [
 
 const CONTRACT_ADDR = import.meta.env.VITE_CONTRACT_ADDRESS;
 const USDC_ADDR     = import.meta.env.VITE_USDC_ADDRESS || "0x3600000000000000000000000000000000000000";
-const BACKEND_URL   = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 
 export default function App() {
-  const [screen, setScreen]         = useState("dashboard");
-  const [provider, setProvider]     = useState(null);
-  const [signer, setSigner]         = useState(null);
-  const [account, setAccount]       = useState(null);
+  const [screen, setScreen]           = useState("dashboard");
+  const [provider, setProvider]       = useState(null);
+  const [signer, setSigner]           = useState(null);
+  const [account, setAccount]         = useState(null);
   const [usdcBalance, setUsdcBalance] = useState(0);
-  const [txHistory, setTxHistory]   = useState([]);
-  const [stats, setStats]           = useState({ count: 0, volume: "0.00" });
-  const [connecting, setConnecting] = useState(false);
-  const [networkOk, setNetworkOk]   = useState(false);
+  const [txHistory, setTxHistory]     = useState([]);
+  const [stats, setStats]             = useState({ count: 0, volume: "0.00" });
+  const [connecting, setConnecting]   = useState(false);
+  const [networkOk, setNetworkOk]     = useState(false);
 
   async function connectWallet() {
-    if (!window.ethereum) {
-      alert("Please install MetaMask.");
-      return;
-    }
+    if (!window.ethereum) { alert("Please install MetaMask."); return; }
     setConnecting(true);
     try {
-      const p = new ethers.BrowserProvider(window.ethereum);
+      const p       = new ethers.BrowserProvider(window.ethereum);
       await p.send("eth_requestAccounts", []);
-
-      // Check current chain
       const network = await p.getNetwork();
-      const currentChainId = Number(network.chainId);
 
-      if (currentChainId !== ARC_CHAIN_ID) {
+      if (Number(network.chainId) !== ARC_CHAIN_ID) {
         try {
-          await window.ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: ARC_CHAIN_HEX }],
-          });
-        } catch (switchErr) {
-          if (switchErr.code === 4902) {
+          await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ARC_CHAIN_HEX }] });
+        } catch (e) {
+          if (e.code === 4902) {
             await window.ethereum.request({
               method: "wallet_addEthereumChain",
               params: [{
@@ -74,9 +63,8 @@ export default function App() {
         }
       }
 
-      // Re-init provider after chain switch
-      const p2 = new ethers.BrowserProvider(window.ethereum);
-      const s  = await p2.getSigner();
+      const p2   = new ethers.BrowserProvider(window.ethereum);
+      const s    = await p2.getSigner();
       const addr = await s.getAddress();
       setProvider(p2);
       setSigner(s);
@@ -98,9 +86,7 @@ export default function App() {
       const usdc = new ethers.Contract(USDC_ADDR, USDC_ABI, p);
       const bal  = await usdc.balanceOf(addr);
       setUsdcBalance(Number(bal) / 1e6);
-    } catch (e) {
-      console.error("Balance error:", e);
-    }
+    } catch (e) { console.error("Balance error:", e); }
   }
 
   async function refreshHistory(p, addr) {
@@ -121,9 +107,7 @@ export default function App() {
           timestamp: new Date(Number(t.timestamp) * 1000).toLocaleString(),
         })).reverse()
       );
-    } catch (e) {
-      console.error("History error:", e);
-    }
+    } catch (e) { console.error("History error:", e); }
   }
 
   async function refreshStats(p) {
@@ -132,13 +116,12 @@ export default function App() {
       const c = new ethers.Contract(CONTRACT_ADDR, CONTRACT_ABI, p);
       const [count, vol] = await Promise.all([c.transferCount(), c.totalVolume()]);
       setStats({ count: Number(count), volume: (Number(vol) / 1e6).toFixed(2) });
-    } catch (e) {
-      console.error("Stats error:", e);
-    }
+    } catch (e) { console.error("Stats error:", e); }
   }
 
-  async function sendTransfer({ aedAmount, recipientName, countryCode }) {
+  async function sendTransfer({ aedAmount, recipientName, countryCode, walletAddress }) {
     if (!signer) throw new Error("Wallet not connected");
+
     const usdc    = new ethers.Contract(USDC_ADDR, USDC_ABI, signer);
     const c       = new ethers.Contract(CONTRACT_ADDR, CONTRACT_ABI, signer);
     const feeBps  = await c.feeBps();
@@ -146,10 +129,15 @@ export default function App() {
     const feeAmt  = (usdcAmt * feeBps) / 10_000n;
     const total   = usdcAmt + feeAmt;
 
+    // If wallet address provided, use it as recipient identifier
+    const finalRecipient = walletAddress
+      ? `wallet:${walletAddress}`
+      : recipientName;
+
     const approveTx = await usdc.approve(CONTRACT_ADDR, total);
     await approveTx.wait();
 
-    const tx      = await c.initiateTransfer(recipientName, countryCode, usdcAmt);
+    const tx      = await c.initiateTransfer(finalRecipient, countryCode, usdcAmt);
     const receipt = await tx.wait();
 
     await Promise.all([
@@ -161,15 +149,17 @@ export default function App() {
     return { txHash: receipt.hash, usdcAmt: Number(usdcAmt) / 1e6 };
   }
 
-  // Listen for account/chain changes
   useEffect(() => {
     if (!window.ethereum) return;
-    const handleChange = () => { setAccount(null); setSigner(null); setNetworkOk(false); };
+    const handleChange = () => {
+      setAccount(null); setSigner(null);
+      setNetworkOk(false); setUsdcBalance(0);
+    };
     window.ethereum.on("accountsChanged", handleChange);
-    window.ethereum.on("chainChanged", handleChange);
+    window.ethereum.on("chainChanged",    handleChange);
     return () => {
       window.ethereum.removeListener("accountsChanged", handleChange);
-      window.ethereum.removeListener("chainChanged", handleChange);
+      window.ethereum.removeListener("chainChanged",    handleChange);
     };
   }, []);
 
@@ -182,7 +172,6 @@ export default function App() {
 
   return (
     <div className="app-root">
-      {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-logo">
           <span className="logo-icon">◈</span>
@@ -217,14 +206,12 @@ export default function App() {
           )}
           <div className="network-badge">
             <span className={`net-dot ${networkOk ? "ok" : ""}`} />
-            Arc Testnet
+            Arc Testnet · {ARC_CHAIN_ID}
           </div>
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="main-area">
-        {/* Top bar */}
         <header className="topbar">
           <div className="topbar-title">
             {navItems.find(n => n.id === screen)?.label}
@@ -232,7 +219,9 @@ export default function App() {
           <div className="topbar-right">
             <div className="balance-chip">
               <span className="balance-label">USDC</span>
-              <span className="balance-val">{usdcBalance.toFixed(2)}</span>
+              <span className="balance-val">
+                {usdcBalance.toLocaleString("en-US", { minimumFractionDigits:2, maximumFractionDigits:2 })}
+              </span>
             </div>
             <div className="stats-chip">
               <span>{stats.count} transfers</span>
@@ -242,7 +231,6 @@ export default function App() {
           </div>
         </header>
 
-        {/* Screen content */}
         <div className="screen-content">
           {screen === "dashboard" && (
             <Dashboard
@@ -250,7 +238,6 @@ export default function App() {
               stats={stats}
               recentTxs={txHistory.slice(0, 5)}
               onSend={() => setScreen("send")}
-              onHistory={() => setScreen("history")}
               connected={!!account}
               onConnect={connectWallet}
               connecting={connecting}
