@@ -9,13 +9,7 @@ export function History({ txs }) {
           <table className="tx-table">
             <thead>
               <tr>
-                <th>Recipient</th>
-                <th>Destination</th>
-                <th>USDC</th>
-                <th>Fee</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th>Hash</th>
+                <th>Recipient</th><th>Destination</th><th>USDC</th><th>Fee</th><th>Date</th><th>Status</th><th>Hash</th>
               </tr>
             </thead>
             <tbody>
@@ -23,9 +17,7 @@ export function History({ txs }) {
                 <tr key={i}>
                   <td>
                     <div className="tx-name">
-                      {tx.recipient?.startsWith("wallet:")
-                        ? tx.recipient.replace("wallet:","").slice(0,10)+"..."
-                        : tx.recipient}
+                      {tx.recipient?.startsWith("wallet:") ? tx.recipient.replace("wallet:","").slice(0,10)+"..." : tx.recipient}
                     </div>
                   </td>
                   <td className="tx-mono">{tx.country}</td>
@@ -33,11 +25,7 @@ export function History({ txs }) {
                   <td className="tx-mono">{tx.fee}</td>
                   <td style={{ fontSize:12, color:"var(--text-muted)" }}>{tx.timestamp}</td>
                   <td><span className="tx-success">✓ Successful</span></td>
-                  <td>
-                    <span className="tx-mono" style={{ color:"var(--accent)", fontSize:11 }}>
-                      {tx.hash?.slice(0,14)}...
-                    </span>
-                  </td>
+                  <td><span className="tx-mono" style={{ color:"var(--accent)", fontSize:11 }}>{tx.hash?.slice(0,14)}...</span></td>
                 </tr>
               ))}
             </tbody>
@@ -53,42 +41,42 @@ export function Architecture() {
     {
       title:"User Layer", color:"var(--accent)",
       nodes:[
-        { icon:"🌍", name:"Global User",     desc:"Any country · Web or mobile" },
-        { icon:"⇄",  name:"Swap + Send UI",  desc:"React · Vercel · Mobile responsive" },
+        { icon:"🌍", name:"Global User",    desc:"Any country · Web or mobile" },
+        { icon:"⇄",  name:"Swap + Send UI", desc:"React · Vite · Vercel · Mobile responsive" },
       ]
     },
     {
       title:"Wallet Layer", color:"var(--amber)",
       nodes:[
-        { icon:"◈",  name:"Circle Embedded Wallet", desc:"Custodial · No seed phrase" },
-        { icon:"🦊", name:"MetaMask / EIP-1193",    desc:"Arc Testnet · Chain 5042002" },
+        { icon:"◈",  name:"Circle Embedded Wallet", desc:"Custodial · No seed phrase · EIP-4337" },
+        { icon:"🦊", name:"MetaMask / EIP-1193",    desc:"Arc Testnet · Chain ID 5042002" },
       ]
     },
     {
-      title:"Swap Layer", color:"var(--purple)",
+      title:"Currency Layer", color:"var(--purple)",
       nodes:[
-        { icon:"⇄", name:"Token Swap",        desc:"USDC, ETH, MATIC, AVAX, ARB" },
-        { icon:"$", name:"USDC Settlement",   desc:"Arc L1 · Dollar-denominated fees" },
+        { icon:"$",  name:"USDC on Arc",          desc:"Dollar-denominated gas · Native stablecoin" },
+        { icon:"💱", name:"Live FX Rates",         desc:"ECB via currency-api.pages.dev · 12+ currencies" },
       ]
     },
     {
       title:"Contract Layer", color:"var(--green)",
       nodes:[
-        { icon:"⬡", name:"RemitArc Contract",  desc:"0x5A8d08...4769 · 30 bps fee" },
-        { icon:"◈", name:"AI Yield Agent",     desc:"DeFi monitor · Auto-rebalance" },
+        { icon:"⬡", name:"RemitArc Contract",  desc:"0x5A8d08...4769 · 30 bps fee · Ownable" },
+        { icon:"◈", name:"AI Yield Agent",     desc:"DeFi monitor · Auto-rebalance · Claude API" },
       ]
     },
     {
       title:"Bridge Layer", color:"var(--accent)",
       nodes:[
-        { icon:"⇄", name:"CCTP Bridge Kit",  desc:"Burn-and-mint · ETH / MATIC" },
-        { icon:"⬡", name:"Circle Gateway",   desc:"Treasury routing · Off-ramp" },
+        { icon:"⇄", name:"CCTP Bridge Kit",  desc:"Burn-and-mint · ETH / MATIC cross-chain" },
+        { icon:"⬡", name:"Circle Gateway",   desc:"Treasury routing · Off-ramp orchestration" },
       ]
     },
     {
       title:"Recipient Layer", color:"var(--green)",
       nodes:[
-        { icon:"◈", name:"USDC Wallet",  desc:"Direct on-chain settlement" },
+        { icon:"◈",  name:"USDC Wallet",   desc:"Direct on-chain · Keep or send to external" },
         { icon:"🌍", name:"12+ Corridors", desc:"Africa · Asia · Americas · Europe" },
       ]
     },
@@ -102,10 +90,10 @@ export function Architecture() {
   ];
 
   const agentFeatures = [
-    { icon:"👁", label:"Monitors",     desc:"8+ DeFi protocols across ETH + Polygon" },
-    { icon:"📊", label:"Evaluates",    desc:"APY, TVL, risk, trend in real time"       },
-    { icon:"⇄",  label:"Rebalances",   desc:"Auto-allocates for max yield on approval" },
-    { icon:"◈",  label:"Recommends",   desc:"Surfaces highest yield with risk context" },
+    { icon:"👁", label:"Monitors",    desc:"8+ DeFi protocols · Ethereum + Polygon" },
+    { icon:"📊", label:"Evaluates",   desc:"APY, TVL, risk, 24h trend"              },
+    { icon:"⇄",  label:"Rebalances",  desc:"Auto-allocates for max yield"            },
+    { icon:"💱", label:"FX rates",    desc:"Live ECB rates for 12+ corridors"        },
   ];
 
   return (
@@ -113,12 +101,12 @@ export function Architecture() {
       {/* Metrics */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:24 }}>
         {[
-          { label:"Settlement",  value:"<1s",     color:"var(--green)"  },
-          { label:"Fee",         value:"0.30%",   color:"var(--accent)" },
-          { label:"Corridors",   value:"12+",     color:"var(--accent)" },
-          { label:"Chains",      value:"3",       color:"var(--amber)"  },
-          { label:"SWIFT saving",value:"~94%",    color:"var(--green)"  },
-          { label:"Chain ID",    value:"5042002", color:"var(--amber)"  },
+          { label:"Settlement",   value:"<1s",     color:"var(--green)"  },
+          { label:"Fee",          value:"0.30%",   color:"var(--accent)" },
+          { label:"Corridors",    value:"12+",     color:"var(--accent)" },
+          { label:"Chains",       value:"3",       color:"var(--amber)"  },
+          { label:"vs SWIFT",     value:"~94%",    color:"var(--green)"  },
+          { label:"Chain ID",     value:"5042002", color:"var(--amber)"  },
         ].map(m => (
           <div key={m.label} style={{ background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:"var(--radius-md)", padding:"12px", textAlign:"center" }}>
             <div style={{ fontFamily:"var(--font-mono)", fontSize:18, fontWeight:600, color:m.color, marginBottom:3 }}>{m.value}</div>
@@ -128,7 +116,6 @@ export function Architecture() {
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns:"1fr 320px", gap:20 }}>
-        {/* Architecture flow */}
         <div className="card">
           <div className="card-title">System architecture</div>
           <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
@@ -136,25 +123,12 @@ export function Architecture() {
               <div key={layer.title}>
                 <div className="arch-layer-label">
                   <div className="arch-layer-bar" style={{ background:layer.color }} />
-                  <span style={{ fontSize:9, fontWeight:700, letterSpacing:1, color:layer.color, textTransform:"uppercase" }}>
-                    {layer.title}
-                  </span>
+                  <span style={{ fontSize:9, fontWeight:700, letterSpacing:1, color:layer.color, textTransform:"uppercase" }}>{layer.title}</span>
                 </div>
                 <div style={{ display:"grid", gridTemplateColumns:`repeat(${layer.nodes.length},1fr)`, gap:8, marginBottom:8 }}>
                   {layer.nodes.map((node, ni) => (
-                    <div key={ni} style={{
-                      background:`${layer.color}0d`,
-                      border:`1px solid ${layer.color}28`,
-                      borderRadius:"var(--radius-md)",
-                      padding:"10px 12px",
-                      display:"flex", alignItems:"center", gap:9,
-                    }}>
-                      <div style={{
-                        width:32, height:32, borderRadius:"var(--radius-sm)",
-                        background:`${layer.color}18`, border:`1px solid ${layer.color}33`,
-                        display:"flex", alignItems:"center", justifyContent:"center",
-                        fontSize:16, flexShrink:0,
-                      }}>{node.icon}</div>
+                    <div key={ni} style={{ background:`${layer.color}0d`, border:`1px solid ${layer.color}28`, borderRadius:"var(--radius-md)", padding:"10px 12px", display:"flex", alignItems:"center", gap:9 }}>
+                      <div style={{ width:32, height:32, borderRadius:"var(--radius-sm)", background:`${layer.color}18`, border:`1px solid ${layer.color}33`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>{node.icon}</div>
                       <div>
                         <div style={{ fontSize:12, fontWeight:700, color:"var(--text-primary)", marginBottom:1 }}>{node.name}</div>
                         <div style={{ fontSize:10, color:"var(--text-secondary)" }}>{node.desc}</div>
@@ -162,7 +136,7 @@ export function Architecture() {
                     </div>
                   ))}
                 </div>
-                {li < layers.length - 1 && (
+                {li < layers.length-1 && (
                   <div style={{ textAlign:"center", color:"var(--text-muted)", fontSize:14, padding:"2px 0 8px", display:"flex", alignItems:"center", gap:8 }}>
                     <div style={{ flex:1, height:1, background:"var(--border)" }} />
                     <span>↓</span>
@@ -174,10 +148,7 @@ export function Architecture() {
           </div>
         </div>
 
-        {/* Right column */}
         <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-
-          {/* AI Agent */}
           <div className="card">
             <div className="card-title">AI yield agent</div>
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -193,7 +164,6 @@ export function Architecture() {
             </div>
           </div>
 
-          {/* Circle tools */}
           <div className="card">
             <div className="card-title">Circle products</div>
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -206,7 +176,6 @@ export function Architecture() {
             </div>
           </div>
 
-          {/* Contract */}
           <div className="card">
             <div className="card-title">Contract details</div>
             {[
@@ -216,6 +185,7 @@ export function Architecture() {
               ["USDC",     "0x360000...0000"],
               ["Fee",      "30 bps (0.30%)"],
               ["Finality", "< 1 second"],
+              ["FX source","ECB · currency-api"],
               ["Solidity", "0.8.20"],
             ].map(([k,v]) => (
               <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:"1px solid var(--border)" }}>
