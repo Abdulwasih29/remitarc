@@ -227,10 +227,14 @@ app.get("/api/stats", async (req, res) => {
   }
 });
 
-// FX rate proxy (AED -> USDC, 1 AED = 0.272 USDC approx)
-app.get("/api/fx/aed-to-usdc", (req, res) => {
-  const aed = parseFloat(req.query.amount || "0");
-  res.json({ aed, usdc: parseFloat((aed * 0.272).toFixed(6)), rate: 0.272 });
+app.get("/api/fx/rates", async (req, res) => {
+  try {
+    const response = await fetch("https://latest.currency-api.pages.dev/v1/currencies/usd.json");
+    const data     = await response.json();
+    res.json({ rates: data.usd, source: "ECB via currency-api.pages.dev" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch rates" });
+  }
 });
 
 // -------------------------------------------------------------------------
