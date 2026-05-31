@@ -1,79 +1,72 @@
 import { useState, useRef, useEffect } from "react";
 
-const DEFI_PROTOCOLS = [
-  { name:"Aave V3",       chain:"Ethereum", asset:"USDC", apy:5.82, tvl:"$8.4B",  risk:"Low",    type:"Lending",    trend:"+0.3%" },
-  { name:"Morpho",        chain:"Ethereum", asset:"USDC", apy:6.41, tvl:"$1.8B",  risk:"Low",    type:"Lending",    trend:"+0.8%" },
-  { name:"Compound V3",   chain:"Ethereum", asset:"USDC", apy:5.14, tvl:"$3.1B",  risk:"Low",    type:"Lending",    trend:"-0.1%" },
-  { name:"Uniswap V3",    chain:"Polygon",  asset:"USDC", apy:8.73, tvl:"$620M",  risk:"Medium", type:"LP",         trend:"+1.2%" },
-  { name:"Stargate",      chain:"Polygon",  asset:"USDC", apy:7.55, tvl:"$480M",  risk:"Medium", type:"Bridge LP",  trend:"+0.5%" },
-  { name:"Yearn V3",      chain:"Ethereum", asset:"USDC", apy:6.88, tvl:"$920M",  risk:"Medium", type:"Vault",      trend:"+0.4%" },
-  { name:"Curve Finance", chain:"Ethereum", asset:"USDC", apy:4.92, tvl:"$4.2B",  risk:"Low",    type:"Stableswap", trend:"-0.2%" },
-  { name:"Convex",        chain:"Ethereum", asset:"USDC", apy:5.60, tvl:"$2.1B",  risk:"Low",    type:"Stableswap", trend:"+0.1%" },
+const BACKEND = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+
+const CORRIDORS = [
+  { code:"NGN", flag:"🇳🇬", name:"Nigeria",       region:"Africa"        },
+  { code:"INR", flag:"🇮🇳", name:"India",         region:"South Asia"    },
+  { code:"PHP", flag:"🇵🇭", name:"Philippines",   region:"SE Asia"       },
+  { code:"PKR", flag:"🇵🇰", name:"Pakistan",      region:"South Asia"    },
+  { code:"KES", flag:"🇰🇪", name:"Kenya",         region:"Africa"        },
+  { code:"GHS", flag:"🇬🇭", name:"Ghana",         region:"Africa"        },
+  { code:"EGP", flag:"🇪🇬", name:"Egypt",         region:"Africa"        },
+  { code:"GBP", flag:"🇬🇧", name:"UK",            region:"Europe"        },
+  { code:"EUR", flag:"🇪🇺", name:"Euro",          region:"Europe"        },
+  { code:"MXN", flag:"🇲🇽", name:"Mexico",        region:"Latin America" },
+  { code:"BRL", flag:"🇧🇷", name:"Brazil",        region:"Latin America" },
+  { code:"BDT", flag:"🇧🇩", name:"Bangladesh",    region:"South Asia"    },
+  { code:"AED", flag:"🇦🇪", name:"UAE Dirham",    region:"Middle East"   },
+  { code:"JPY", flag:"🇯🇵", name:"Japan",         region:"East Asia"     },
+  { code:"CNY", flag:"🇨🇳", name:"China",         region:"East Asia"     },
 ];
 
-const BEST = DEFI_PROTOCOLS.reduce((a,b) => a.apy > b.apy ? a : b);
-
 const SUGGESTED = [
-  "Which protocol has the highest yield?",
-  "Compare Aave and Morpho",
-  "Should I rebalance my portfolio?",
-  "What is the risk level of Uniswap V3?",
-  "Auto-rebalance for maximum yield",
+  "How much NGN will $500 get me?",
+  "Best corridor to send $1000 to India?",
+  "Compare sending to Nigeria vs Ghana",
+  "What is the GBP rate right now?",
+  "Which corridor has the best rate today?",
+  "How much does RemitArc charge in fees?",
 ];
 
 export default function Agent({ usdcBalance, account }) {
-  const [messages, setMessages] = useState([
-    { role:"assistant", text:`Hello. I am RemitArc's DeFi yield agent.\n\nI monitor ${DEFI_PROTOCOLS.length} protocols across Ethereum and Polygon in real time. The highest yield right now is ${BEST.apy}% APY on ${BEST.name} (${BEST.type} · ${BEST.chain}).\n\nAsk me about yields, rebalancing, or protocol risk.` }
+  const [messages, setMessages]       = useState([
+    { role:"assistant", text:"Hello. I am RemitArc's FX agent.\n\nI pull live exchange rates for 15+ global corridors and help you find the best way to send USDC cross-border.\n\nAsk me anything -- conversion amounts, corridor comparisons, fee breakdowns, or which destination gives the most local currency right now." }
   ]);
-  const [input, setInput]         = useState("");
-  const [loading, setLoading]     = useState(false);
-  const [rates, setRates]         = useState({});
-  const [rebalancing, setRebalancing] = useState(false);
+  const [input, setInput]             = useState("");
+  const [loading, setLoading]         = useState(false);
+  const [rates, setRates]             = useState({});
+  const [ratesLoading, setRatesLoading] = useState(true);
+  const [backendOk, setBackendOk]     = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const bottomRef = useRef(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages]);
 
-  // Fetch live currency rates on mount
   useEffect(() => {
-    fetch("https://latest.currency-api.pages.dev/v1/currencies/usd.json")
-      .then(r => r.json())
-      .then(data => setRates(data.usd || {}))
-      .catch(() => {});
+    fetchRates();
+    fetch(`${BACKEND}/health`)
+      .then(r => r.ok ? setBackendOk(true) : setBackendOk(false))
+      .catch(() => setBackendOk(false));
   }, []);
 
+  async function fetchRates() {
+    setRatesLoading(true);
+    try {
+      const res  = await fetch("https://latest.currency-api.pages.dev/v1/currencies/usd.json");
+      const data = await res.json();
+      setRates(data.usd || {});
+      setLastUpdated(new Date().toLocaleTimeString());
+    } catch (e) {
+      console.error("Rate fetch failed", e);
+    } finally {
+      setRatesLoading(false);
+    }
+  }
+
   const ratesSummary = Object.keys(rates).length > 0
-    ? `Live currency rates (1 USD): EUR=${rates.eur?.toFixed(4)}, GBP=${rates.gbp?.toFixed(4)}, NGN=${rates.ngn?.toFixed(2)}, INR=${rates.inr?.toFixed(4)}, PHP=${rates.php?.toFixed(4)}, KES=${rates.kes?.toFixed(2)}, GHS=${rates.ghs?.toFixed(4)}, EGP=${rates.egp?.toFixed(4)}, MXN=${rates.mxn?.toFixed(4)}, PKR=${rates.pkr?.toFixed(2)}, BRL=${rates.brl?.toFixed(4)}, AED=${rates.aed?.toFixed(4)}`
-    : "Currency rates: loading from ECB via currency-api.pages.dev";
-
-  const protocolContext = DEFI_PROTOCOLS
-    .map(p => `${p.name} (${p.chain}): ${p.apy}% APY, TVL ${p.tvl}, Risk ${p.risk}, Type ${p.type}, 24h trend ${p.trend}`)
-    .join("\n");
-
-  const systemPrompt = `You are RemitArc's DeFi yield agent. You monitor DeFi protocols, evaluate yields, help users rebalance portfolios, and surface the best yield opportunities.
-
-User wallet: ${account || "not connected"}
-User USDC balance: ${usdcBalance?.toFixed(2) || "0.00"} USDC
-
-${ratesSummary}
-
-Live DeFi protocol data:
-${protocolContext}
-
-Best yield right now: ${BEST.name} at ${BEST.apy}% APY
-
-Your capabilities:
-- Monitor and compare protocol yields in real time
-- Recommend rebalancing strategies
-- Explain protocol risks clearly
-- Show FX rates for remittance corridors
-- Simulate rebalancing scenarios
-
-Rules:
-- Be specific with numbers (APY, TVL, amounts)
-- Always mention the best yield option when relevant
-- Flag risk levels clearly
-- Keep responses concise and actionable
-- If asked about currency rates, use the live rates provided above`;
+    ? CORRIDORS.map(c => `${c.name} (${c.code}): 1 USDC = ${rates[c.code.toLowerCase()]?.toLocaleString("en-US",{maximumFractionDigits:4}) || "N/A"} ${c.code}`).join("\n")
+    : "Live FX rates: loading...";
 
   async function sendMessage(text) {
     const userText = (text || input).trim();
@@ -85,66 +78,64 @@ Rules:
     setLoading(true);
 
     try {
-      const apiMessages = newMessages.map(m => ({
-        role:    m.role === "assistant" ? "assistant" : "user",
-        content: m.text,
-      }));
-
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(`${BACKEND}/api/agent`, {
         method:  "POST",
         headers: { "Content-Type":"application/json" },
         body: JSON.stringify({
-          model:      "claude-sonnet-4-20250514",
-          max_tokens: 800,
-          system:     systemPrompt,
-          messages:   apiMessages,
+          messages:    newMessages,
+          usdcBalance: usdcBalance || 0,
+          account:     account || null,
+          rates,
+          mode:        "fx",
         }),
       });
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error?.message || `API error ${response.status}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Backend error ${res.status}`);
       }
 
-      const data  = await response.json();
-      const reply = data.content?.[0]?.text || "No response received.";
-      setMessages(prev => [...prev, { role:"assistant", text: reply }]);
+      const data = await res.json();
+      setMessages(prev => [...prev, { role:"assistant", text: data.reply }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role:"assistant", text:`Error: ${err.message}. Please try again.` }]);
+      setMessages(prev => [...prev, {
+        role:"assistant",
+        text:`Error: ${err.message}\n\nCheck that your backend is running and ANTHROPIC_API_KEY is set in backend/.env`
+      }]);
     } finally {
       setLoading(false);
     }
   }
 
-  async function autoRebalance() {
-    setRebalancing(true);
-    const userMsg = "Auto-rebalance my portfolio for maximum yield.";
-    setMessages(prev => [...prev, { role:"user", text: userMsg }]);
-    setLoading(true);
-
-    try {
-      const top3 = [...DEFI_PROTOCOLS].sort((a,b) => b.apy - a.apy).slice(0,3);
-      const rebalanceText = `Rebalance complete. Optimal allocation based on current yields:\n\n${top3.map((p,i) => `${i+1}. ${p.name} (${p.chain}) -- ${p.apy}% APY\n   Allocate: ${[50,30,20][i]}% · TVL: ${p.tvl} · Risk: ${p.risk}`).join("\n\n")}\n\nBlended APY: ${((top3[0].apy*0.5)+(top3[1].apy*0.3)+(top3[2].apy*0.2)).toFixed(2)}%\n\nOn mainnet this would execute via Circle Gateway. On testnet the rebalance is simulated.`;
-      await new Promise(r => setTimeout(r, 1500));
-      setMessages(prev => [...prev, { role:"assistant", text: rebalanceText }]);
-    } finally {
-      setLoading(false);
-      setRebalancing(false);
-    }
-  }
+  // Best rate among corridors
+  const bestCorridor = CORRIDORS
+    .filter(c => rates[c.code.toLowerCase()] && c.code !== "GBP" && c.code !== "EUR")
+    .sort((a,b) => (rates[b.code.toLowerCase()] || 0) - (rates[a.code.toLowerCase()] || 0))[0];
 
   return (
     <div className="agent-layout">
-      {/* Chat */}
+      {/* Chat panel */}
       <div>
+        {backendOk === false && (
+          <div className="error-box" style={{ marginBottom:12 }}>
+            Backend offline -- start your Railway backend and add ANTHROPIC_API_KEY to .env
+          </div>
+        )}
+
         <div className="chat-window">
           <div style={{ padding:"12px 14px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div>
-              <span style={{ fontSize:12, fontWeight:700 }}>DeFi Yield Agent</span>
-              <span style={{ marginLeft:8, fontSize:10, color:"var(--green)", fontWeight:600 }}>● Live</span>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ fontSize:12, fontWeight:700 }}>FX Agent</span>
+              <span style={{ fontSize:10, color: backendOk ? "var(--green)" : backendOk === false ? "var(--red)" : "var(--amber)", fontWeight:600 }}>
+                {backendOk === null ? "● Connecting..." : backendOk ? "● Live" : "● Offline"}
+              </span>
             </div>
-            <button className="btn-primary" style={{ padding:"6px 14px", fontSize:12 }} onClick={autoRebalance} disabled={rebalancing || loading}>
-              {rebalancing ? <><span className="spinner" /> Rebalancing...</> : "Auto-Rebalance"}
+            <button
+              onClick={fetchRates}
+              disabled={ratesLoading}
+              style={{ padding:"5px 12px", background:"var(--bg-surface)", border:"1px solid var(--border)", borderRadius:"var(--radius-sm)", fontSize:11, color:"var(--text-secondary)", cursor:"pointer", fontFamily:"var(--font-sans)", fontWeight:600 }}
+            >
+              {ratesLoading ? "Refreshing..." : "↻ Refresh rates"}
             </button>
           </div>
 
@@ -158,7 +149,7 @@ Rules:
             ))}
             {loading && (
               <div className="chat-bubble loading">
-                <span className="spinner" style={{ marginRight:6 }} /> Analyzing...
+                <span className="spinner" style={{ marginRight:6 }} /> Checking rates...
               </div>
             )}
             <div ref={bottomRef} />
@@ -167,15 +158,17 @@ Rules:
           <div className="chat-input-row">
             <input
               className="chat-input"
-              placeholder="Ask about yields, rates, rebalancing..."
+              placeholder={backendOk ? "Ask about rates, conversions, corridors..." : "Backend offline..."}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && sendMessage()}
-              disabled={loading}
+              disabled={loading || !backendOk}
             />
-            <button className="chat-send" onClick={() => sendMessage()} disabled={loading || !input.trim()}>
-              Send
-            </button>
+            <button
+              className="chat-send"
+              onClick={() => sendMessage()}
+              disabled={loading || !input.trim() || !backendOk}
+            >Send</button>
           </div>
         </div>
 
@@ -185,7 +178,7 @@ Rules:
             <button
               key={p}
               onClick={() => sendMessage(p)}
-              disabled={loading}
+              disabled={loading || !backendOk}
               style={{ padding:"5px 11px", background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:20, color:"var(--text-secondary)", fontSize:11, fontWeight:500, cursor:"pointer", fontFamily:"var(--font-sans)", transition:"all 0.15s" }}
               onMouseOver={e => { e.currentTarget.style.borderColor="var(--accent)"; e.currentTarget.style.color="var(--accent)"; }}
               onMouseOut={e => { e.currentTarget.style.borderColor="var(--border)"; e.currentTarget.style.color="var(--text-secondary)"; }}
@@ -194,28 +187,74 @@ Rules:
         </div>
       </div>
 
-      {/* Protocol monitor */}
-      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-        <div style={{ fontSize:10, fontWeight:700, letterSpacing:1, color:"var(--text-muted)", textTransform:"uppercase", marginBottom:2 }}>Live Protocol Monitor</div>
-        {[...DEFI_PROTOCOLS].sort((a,b) => b.apy - a.apy).map(p => (
-          <div key={p.name} className={`yield-card ${p.name===BEST.name?"yield-best":""}`}>
-            <div className="yield-header">
-              <div>
-                <div className="yield-protocol">{p.name}</div>
-                <div style={{ fontSize:10, color:"var(--text-muted)", marginTop:1 }}>{p.chain} · {p.type}</div>
-              </div>
-              <div style={{ textAlign:"right" }}>
-                <div className="yield-apy" style={{ color: p.apy>7?"var(--green)":p.apy>5.5?"var(--amber)":"var(--text-secondary)" }}>{p.apy}%</div>
-                {p.name===BEST.name && <div className="best-badge">BEST</div>}
-              </div>
+      {/* Right panel: live rates */}
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+
+        {/* Best rate highlight */}
+        {bestCorridor && rates[bestCorridor.code.toLowerCase()] && (
+          <div style={{ background:"var(--green-dim)", border:"1px solid rgba(0,229,160,0.25)", borderRadius:"var(--radius-lg)", padding:"14px 16px" }}>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:0.8, color:"var(--green)", textTransform:"uppercase", marginBottom:6 }}>
+              Most local currency per USDC
             </div>
-            <div className="yield-body" style={{ display:"flex", justifyContent:"space-between" }}>
-              <span>TVL {p.tvl}</span>
-              <span>Risk: {p.risk}</span>
-              <span style={{ color:p.trend.startsWith("+")?"var(--green)":"var(--red)" }}>{p.trend}</span>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ fontSize:26 }}>{bestCorridor.flag}</span>
+              <div>
+                <div style={{ fontSize:14, fontWeight:700, color:"var(--text-primary)" }}>{bestCorridor.name}</div>
+                <div style={{ fontFamily:"var(--font-mono)", fontSize:18, fontWeight:600, color:"var(--green)" }}>
+                  {rates[bestCorridor.code.toLowerCase()]?.toLocaleString("en-US",{maximumFractionDigits:2})} {bestCorridor.code}
+                </div>
+                <div style={{ fontSize:10, color:"var(--text-secondary)" }}>per 1 USDC</div>
+              </div>
             </div>
           </div>
-        ))}
+        )}
+
+        {/* Live rate table */}
+        <div className="card">
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+            <div className="card-title" style={{ marginBottom:0 }}>Live rates · 1 USDC</div>
+            {lastUpdated && (
+              <span style={{ fontSize:9, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{lastUpdated}</span>
+            )}
+          </div>
+
+          {ratesLoading ? (
+            <div style={{ textAlign:"center", padding:"20px 0", color:"var(--text-muted)", fontSize:12 }}>
+              <span className="spinner" style={{ marginRight:6 }} /> Fetching live rates...
+            </div>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
+              {CORRIDORS.map(c => {
+                const rate = rates[c.code.toLowerCase()];
+                return (
+                  <div
+                    key={c.code}
+                    style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderBottom:"1px solid var(--border)", cursor:"pointer" }}
+                    onClick={() => sendMessage(`What is the current ${c.code} rate and how much ${c.code} will $100 get me?`)}
+                    onMouseOver={e => e.currentTarget.style.background="var(--bg-hover)"}
+                    onMouseOut={e => e.currentTarget.style.background="transparent"}
+                  >
+                    <span style={{ fontSize:16, flexShrink:0 }}>{c.flag}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:"var(--text-primary)" }}>{c.name}</div>
+                      <div style={{ fontSize:10, color:"var(--text-muted)" }}>{c.region}</div>
+                    </div>
+                    <div style={{ textAlign:"right", flexShrink:0 }}>
+                      <div style={{ fontFamily:"var(--font-mono)", fontSize:12, fontWeight:500, color: rate ? "var(--text-primary)" : "var(--text-muted)" }}>
+                        {rate ? rate.toLocaleString("en-US",{maximumFractionDigits:4}) : "N/A"}
+                      </div>
+                      <div style={{ fontSize:9, color:"var(--text-muted)" }}>{c.code}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ fontSize:9, color:"var(--text-muted)", marginTop:10, textAlign:"right", fontFamily:"var(--font-mono)" }}>
+            ECB · currency-api.pages.dev · click rate to ask agent
+          </div>
+        </div>
       </div>
     </div>
   );
